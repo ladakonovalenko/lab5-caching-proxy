@@ -1,0 +1,260 @@
+{
+  "info": {
+    "_postman_id": "0b598242-3129-4bc4-a67b-0bee4189bc01",
+    "name": "Lab5 Caching Proxy",
+    "description": "Тести кешуючого проксі-сервера (http.cat)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "60023573",
+    "_collection_link": "https://go.postman.co/collection/60023573-0b598242-3129-4bc4-a67b-0bee4189bc01?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1. GET 418 — немає в кеші (з http.cat)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Код стану 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Content-Type: image/jpeg\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/jpeg\"));",
+              "pm.test(\"X-Cache: MISS\", () => pm.expect(pm.response.headers.get(\"X-Cache\")).to.eql(\"MISS\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/418",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "418"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. GET 418 — повторний (з кешу)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Код стану 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Content-Type: image/jpeg\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/jpeg\"));",
+              "pm.test(\"X-Cache: HIT\", () => pm.expect(pm.response.headers.get(\"X-Cache\")).to.eql(\"HIT\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/418",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "418"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. PUT 418 — власна картинка",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Код стану 201\", () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "image/jpeg"
+          }
+        ],
+        "body": {
+          "mode": "file",
+          "file": {
+            "src": "my-cat.jpg"
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/418",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "418"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. GET 418 після PUT (власна картинка)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Код стану 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Content-Type: image/jpeg\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/jpeg\"));",
+              "pm.test(\"X-Cache: HIT\", () => pm.expect(pm.response.headers.get(\"X-Cache\")).to.eql(\"HIT\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/418",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "418"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. DELETE 418",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Код стану 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/418",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "418"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6. DELETE 418 — картинки вже немає",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Код стану 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/418",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "418"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7. GET 999 — неіснуючий код",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Код стану 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "999"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8. POST 200 — недозволений метод",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Код стану 405\", () => pm.response.to.have.status(405));",
+              "pm.test(\"Заголовок Allow\", () => pm.expect(pm.response.headers.get(\"Allow\")).to.eql(\"GET, PUT, DELETE\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/200",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "200"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    }
+  ]
+}
