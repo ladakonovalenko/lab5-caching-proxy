@@ -1,0 +1,57 @@
+Команди curl для перевірки кешуючого проксі-сервера
+Сервер запущено командою:
+  node main.js -h 127.0.0.1 -p 3000 -c ./cache
+
+=== Перевірка параметрів командного рядка ===
+# без обов'язкових опцій -> помилка, ненульовий код завершення
+node main.js
+node main.js -h 127.0.0.1 -p 3000
+# некоректний порт
+node main.js -h 127.0.0.1 -p abc -c ./cache
+
+=== GET ===
+# 1. Картинки ще немає в кеші -> 200, X-Cache: MISS, файл 418.jpg з'являється в ./cache
+curl -s -D - http://127.0.0.1:3000/418 -o 418-first.jpg
+
+# 2. Повторний запит -> 200, X-Cache: HIT (з кешу)
+curl -s -D - http://127.0.0.1:3000/418 -o 418-second.jpg
+
+# 3. Час відповіді: перший (з http.cat) і повторний (з кешу) запит
+curl -s -o /dev/null -w "status=%{http_code} time=%{time_total}s\n" http://127.0.0.1:3000/500
+curl -s -o /dev/null -w "status=%{http_code} time=%{time_total}s\n" http://127.0.0.1:3000/500
+
+# 4. Неіснуючий код -> 404
+curl -i http://127.0.0.1:3000/999
+
+# 5. Некоректний шлях -> 404
+curl -i http://127.0.0.1:3000/abc
+
+=== PUT ===
+# 6. Записати власну картинку для коду 418 -> 201
+curl -i -X PUT --data-binary @my-cat.jpg -H "Content-Type: image/jpeg" http://127.0.0.1:3000/418
+
+# 7. GET після PUT -> 200, X-Cache: HIT, повертається власна картинка
+curl -s -D - http://127.0.0.1:3000/418 -o 418-after-put.jpg
+
+# 8. PUT для коду, якого ще немає в кеші -> 201
+curl -i -X PUT --data-binary @my-cat.jpg -H "Content-Type: image/jpeg" http://127.0.0.1:3000/777
+
+# 9. PUT з порожнім тілом -> 400
+curl -i -X PUT http://127.0.0.1:3000/418
+
+=== DELETE ===
+# 10. Видалити картинку з кешу -> 200
+curl -i -X DELETE http://127.0.0.1:3000/418
+
+# 11. Повторне видалення (картинки вже немає) -> 404
+curl -i -X DELETE http://127.0.0.1:3000/418
+
+=== Недозволені методи ===
+# 12. POST -> 405, заголовок Allow: GET, PUT, DELETE
+curl -i -X POST http://127.0.0.1:3000/200
+
+# 13. PATCH -> 405
+curl -i -X PATCH http://127.0.0.1:3000/200
+
+# 14. HEAD -> 405
+curl -I http://127.0.0.1:3000/200
