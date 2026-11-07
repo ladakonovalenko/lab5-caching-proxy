@@ -1,13 +1,16 @@
 {
-  "name": "lab5",
+  "name": "lab5-caching-proxy",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Кешуючий проксі-сервер для картинок з http.cat на базі модуля http",
+  "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node main.js -h 127.0.0.1 -p 3000 -c ./cache"
   },
-  "keywords": [],
-  "author": "",
+  "author": "Лада Коноваленко",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "commander": "^15.1.0",
+    "superagent": "^10.4.2"
+  }
 }
