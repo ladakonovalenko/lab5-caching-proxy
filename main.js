@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs/promises');
 const { once } = require('events');
 const { Command } = require('commander');
+const superagent = require('superagent');
 
 // ---------- Параметри командного рядка ----------
 const program = new Command();
@@ -28,7 +29,8 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   process.exit(1);
 }
 
-const METHODS = [];
+const UPSTREAM = 'https://http.cat';
+const METHODS = ['GET'];
 const ALLOWED_METHODS = METHODS.join(', ');
 
 // ---------- Допоміжні функції ----------
@@ -50,7 +52,55 @@ function sendText(res, status, message, headers = {}) {
   res.end(message);
 }
 
+function sendImage(res, data, source) {
+  res.writeHead(200, {
+    'Content-Type': 'image/jpeg',
+    'Content-Length': data.length,
+    'X-Cache': source, // HIT — з кешу, MISS — щойно отримано з http.cat
+  });
+  res.end(data);
+}
+
+// Отримує картинку з http.cat. Повертає Buffer або null, якщо картинки немає / помилка.
+async function fetchFromUpstream(code) {
+  try {
+    const response = await superagent
+      .get(`${UPSTREAM}/${code}`)
+      .responseType('blob'); // тіло відповіді як Buffer, без змін
+    if (!Buffer.isBuffer(response.body) || response.body.length === 0) {
+      return null;
+    }
+    return response.body;
+  } catch (err) {
+    const reason = err.status ? `статус ${err.status}` : err.message;
+    console.error(`http.cat /${code}: ${reason}`);
+    return null;
+  }
+}
+
 // ---------- Обробники методів ----------
+
+async function handleGet(code, res) {
+  const file = cacheFile(code);
+  try {
+    const data = await fs.readFile(file);
+    console.log(`GET /${code} — з кешу`);
+    sendImage(res, data, 'HIT');
+    return;
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+  }
+
+  const data = await fetchFromUpstream(code);
+  if (data === null) {
+    sendText(res, 404, `Картинку для коду ${code} не знайдено ні в кеші, ні на http.cat`);
+    return;
+  }
+
+  await fs.writeFile(file, data); // спочатку зберігаємо в кеш
+  console.log(`GET /${code} — з http.cat, збережено в кеш`);
+  sendImage(res, data, 'MISS'); // потім віддаємо клієнтові
+}
 
 // ---------- Сервер ----------
 
@@ -61,6 +111,13 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    const code = parseCode(req.url);
+    if (code === null) {
+      sendText(res, 404, 'Некоректний шлях: очікується /<код стану з трьох цифр>, наприклад /404');
+      return;
+    }
+
+    await handleGet(code, res);
   } catch (err) {
     console.error(`${req.method} ${req.url}:`, err);
     if (!res.headersSent) {
