@@ -30,7 +30,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 
 const UPSTREAM = 'https://http.cat';
-const METHODS = ['GET'];
+const METHODS = ['GET', 'PUT'];
 const ALLOWED_METHODS = METHODS.join(', ');
 
 // ---------- Допоміжні функції ----------
@@ -59,6 +59,15 @@ function sendImage(res, data, source) {
     'X-Cache': source, // HIT — з кешу, MISS — щойно отримано з http.cat
   });
   res.end(data);
+}
+
+// Читає все тіло запиту в один Buffer (потік читається через for await).
+async function readBody(req) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
 }
 
 // Отримує картинку з http.cat. Повертає Buffer або null, якщо картинки немає / помилка.
@@ -102,6 +111,17 @@ async function handleGet(code, res) {
   sendImage(res, data, 'MISS'); // потім віддаємо клієнтові
 }
 
+async function handlePut(code, req, res) {
+  const body = await readBody(req);
+  if (body.length === 0) {
+    sendText(res, 400, 'Тіло запиту порожнє — надішліть картинку');
+    return;
+  }
+  await fs.writeFile(cacheFile(code), body);
+  console.log(`PUT /${code} — записано ${body.length} байт`);
+  sendText(res, 201, `Картинку для коду ${code} збережено в кеш`);
+}
+
 // ---------- Сервер ----------
 
 const server = http.createServer(async (req, res) => {
@@ -117,7 +137,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    await handleGet(code, res);
+    if (req.method === 'GET') {
+      await handleGet(code, res);
+    } else {
+      await handlePut(code, req, res);
+    }
   } catch (err) {
     console.error(`${req.method} ${req.url}:`, err);
     if (!res.headersSent) {
