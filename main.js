@@ -30,7 +30,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 
 const UPSTREAM = 'https://http.cat';
-const METHODS = ['GET', 'PUT'];
+const METHODS = ['GET', 'PUT', 'DELETE'];
 const ALLOWED_METHODS = METHODS.join(', ');
 
 // ---------- Допоміжні функції ----------
@@ -122,6 +122,20 @@ async function handlePut(code, req, res) {
   sendText(res, 201, `Картинку для коду ${code} збережено в кеш`);
 }
 
+async function handleDelete(code, res) {
+  try {
+    await fs.unlink(cacheFile(code));
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      sendText(res, 404, `Картинки для коду ${code} немає в кеші`);
+      return;
+    }
+    throw err;
+  }
+  console.log(`DELETE /${code} — видалено з кешу`);
+  sendText(res, 200, `Картинку для коду ${code} видалено з кешу`);
+}
+
 // ---------- Сервер ----------
 
 const server = http.createServer(async (req, res) => {
@@ -139,8 +153,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET') {
       await handleGet(code, res);
-    } else {
+    } else if (req.method === 'PUT') {
       await handlePut(code, req, res);
+    } else {
+      await handleDelete(code, res);
     }
   } catch (err) {
     console.error(`${req.method} ${req.url}:`, err);
